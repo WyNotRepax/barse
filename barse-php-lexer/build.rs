@@ -1,6 +1,6 @@
 use std::{collections::HashMap, env, fs::File, io::Write, path::PathBuf};
 
-use php_exec::{PhpExec, PhpResult};
+use barse_php_exec::{PhpExec, PhpResult};
 
 fn main() {
     let mut php = PhpExec::new().unwrap();

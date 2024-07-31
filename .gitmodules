@@ -1,0 +1,3 @@
+[submodule "barse-php-lexer/tests/test_data/symfony"]
+	path = barse-php-lexer/tests/test_data/symfony
+	url = git@github.com:symfony/symfony.git

@@ -1,6 +1,6 @@
 use std::sync::{Mutex, OnceLock};
 
-use php_exec::PhpExec;
+use barse_php_exec::PhpExec;
 use serde::Deserialize;
 
 use crate::{Token, TokenName};

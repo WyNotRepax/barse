@@ -61,7 +61,6 @@ pub fn lex(code: impl AsRef<str>) -> Vec<Token> {
             .or_else(|| Lex::lex((Cast("unset"), TokenName::UnsetCast), remaining))
             .or_else(|| Lex::lex((Keyword("new"), TokenName::New), remaining))
             .or_else(|| Lex::lex((Keyword("clone"), TokenName::Clone), remaining))
-            .or_else(|| Lex::lex(Simple, remaining))
             .or_else(|| Lex::lex((Keyword("elseif"), TokenName::Elseif), remaining))
             .or_else(|| Lex::lex((Keyword("else"), TokenName::Else), remaining))
             .or_else(|| Lex::lex((Keyword("endif"), TokenName::Endif), remaining))
@@ -73,6 +72,9 @@ pub fn lex(code: impl AsRef<str>) -> Vec<Token> {
             .or_else(|| Lex::lex((Keyword("public"), TokenName::Public), remaining))
             .or_else(|| Lex::lex(Lnumber, remaining))
             .or_else(|| Lex::lex(Dnumber, remaining))
+            .or_else(|| Lex::lex(Variable, remaining))
+            .or_else(|| Lex::lex(Name, remaining))
+            .or_else(|| Lex::lex(Simple, remaining))
             .unwrap();
         tokens.push(token);
         remaining = &remaining[len..];
@@ -237,28 +239,55 @@ impl ConstName for YieldFrom {
 }
 
 struct Sequence<S>(S);
-
-macro_rules! sequence {
-    ($($types:ident),+) => {
-        impl<$($types: PeekLen),*> PeekLen for Sequence<($($types,)*)> {
-            #[allow(non_snake_case)]
-            fn peek_len(self, code: &str) -> Option<usize> {
-                let ($($types),*) = self.0;
-                Some(0)
-                $(
-                    .and_then(|l| $types.peek_len(&code[l..]).map(|lnew| l + lnew))
-                )*
+const _: () = {
+    macro_rules! sequence {
+        ($($types:ident),+) => {
+            impl<$($types: PeekLen),*> PeekLen for Sequence<($($types,)*)> {
+                #[allow(non_snake_case)]
+                fn peek_len(self, code: &str) -> Option<usize> {
+                    let ($($types),*) = self.0;
+                    Some(0)
+                    $(
+                        .and_then(|l| $types.peek_len(&code[l..]).map(|lnew| l + lnew))
+                    )*
+                }
             }
-        }
-    };
-}
+        };
+    }
 
-sequence! {T1, T2}
-sequence! {T1, T2, T3}
-sequence! {T1, T2, T3, T4}
-sequence! {T1, T2, T3, T4, T5}
-sequence! {T1, T2, T3, T4, T5, T6}
-sequence! {T1, T2, T3, T4, T5, T6, T8}
+    sequence! {T1, T2}
+    sequence! {T1, T2, T3}
+    sequence! {T1, T2, T3, T4}
+    sequence! {T1, T2, T3, T4, T5}
+    sequence! {T1, T2, T3, T4, T5, T6}
+    sequence! {T1, T2, T3, T4, T5, T6, T7}
+    sequence! {T1, T2, T3, T4, T5, T6, T7, T8}
+};
+struct Or<O>(O);
+const _: () = {
+    macro_rules! or {
+        ($($types:ident),+) => {
+            impl<$($types: PeekLen),*> PeekLen for Or<($($types,)*)> {
+                #[allow(non_snake_case)]
+                fn peek_len(self, code: &str) -> Option<usize> {
+                    let ($($types),*) = self.0;
+                    None
+                    $(
+                        .or_else(|| dbg!($types.peek_len(code)))
+                    )*
+                }
+            }
+        };
+    }
+
+    or! {T1, T2}
+    or! {T1, T2, T3}
+    or! {T1, T2, T3, T4}
+    or! {T1, T2, T3, T4, T5}
+    or! {T1, T2, T3, T4, T5, T6}
+    or! {T1, T2, T3, T4, T5, T6, T7}
+    or! {T1, T2, T3, T4, T5, T6, T7, T8}
+};
 
 struct OpenTag;
 
@@ -315,25 +344,6 @@ struct Lnumber;
 
 impl PeekLen for Lnumber {
     fn peek_len(self, code: &str) -> Option<usize> {
-        struct Octal;
-        impl PeekLen for Octal {
-            fn peek_len(self, code: &str) -> Option<usize> {
-                if !code.starts_with("0") {
-                    return None;
-                }
-                let length = code[1..]
-                    .chars()
-                    .take_while(|c| c.is_digit(8))
-                    .map(char::len_utf8)
-                    .sum();
-                if length > 0 {
-                    Some(length)
-                } else {
-                    None
-                }
-            }
-        }
-
         struct Decimal;
         impl PeekLen for Decimal {
             fn peek_len(self, code: &str) -> Option<usize> {
@@ -352,12 +362,63 @@ impl PeekLen for Lnumber {
             }
         }
 
+        struct Octal;
+        impl PeekLen for Octal {
+            fn peek_len(self, code: &str) -> Option<usize> {
+                if !code.starts_with("0") {
+                    return None;
+                }
+                let length: usize = code[1..]
+                    .chars()
+                    .take_while(|c| c.is_digit(8))
+                    .map(char::len_utf8)
+                    .sum();
+                if length > 0 {
+                    Some(length + 1)
+                } else {
+                    None
+                }
+            }
+        }
+
         struct Hex;
         impl PeekLen for Hex {
             fn peek_len(self, code: &str) -> Option<usize> {
-                Seq
+                if !(code.starts_with("0x") || code.starts_with("0X")) {
+                    return None;
+                }
+                let length: usize = code[2..]
+                    .chars()
+                    .take_while(char::is_ascii_hexdigit)
+                    .map(char::len_utf8)
+                    .sum();
+                if length > 0 {
+                    Some(length + 2)
+                } else {
+                    None
+                }
             }
         }
+
+        struct Bin;
+        impl PeekLen for Bin {
+            fn peek_len(self, code: &str) -> Option<usize> {
+                if !(code.starts_with("0b") || code.starts_with("0B")) {
+                    return None;
+                }
+                let length: usize = code[2..]
+                    .chars()
+                    .take_while(|c| *c == '0' || *c == '1')
+                    .map(char::len_utf8)
+                    .sum();
+                if length > 0 {
+                    Some(length + 2)
+                } else {
+                    None
+                }
+            }
+        }
+        Or((Hex, Octal, Bin, Decimal)).peek_len(code)
     }
 }
 
@@ -370,10 +431,94 @@ struct Dnumber;
 
 impl PeekLen for Dnumber {
     fn peek_len(self, code: &str) -> Option<usize> {
-        todo!()
+        struct Lnum;
+        impl PeekLen for Lnum {
+            fn peek_len(self, code: &str) -> Option<usize> {
+                let len = code
+                    .chars()
+                    .take_while(|c| c.is_ascii_digit())
+                    .map(char::len_utf8)
+                    .sum();
+                if len > 0 {
+                    Some(len)
+                } else {
+                    None
+                }
+            }
+        }
+        struct Dnum;
+        impl PeekLen for Dnum {
+            fn peek_len(self, code: &str) -> Option<usize> {
+                Or((
+                    Sequence((Optional(Lnum), ".", Lnum)),
+                    Sequence((Lnum, ".", Optional(Lnum))),
+                ))
+                .peek_len(code)
+            }
+        }
+        struct ExponentDnum;
+        impl PeekLen for ExponentDnum {
+            fn peek_len(self, code: &str) -> Option<usize> {
+                Sequence((
+                    Or((Dnum, Lnum)),
+                    CaseInsensitive("e"),
+                    Optional(Or(("+", "-"))),
+                    Lnum,
+                ))
+                .peek_len(code)
+            }
+        }
+        Or((ExponentDnum, Dnum, Lnum)).peek_len(code)
     }
 }
 
 impl ConstName for Dnumber {
     const NAME: TokenName = TokenName::Dnumber;
+}
+
+struct Variable;
+
+impl PeekLen for Variable{
+    fn peek_len(self, code: &str) -> Option<usize> {
+        Sequence(("$", Name)).peek_len(code)
+    }
+}
+
+impl ConstName for Variable{
+    const NAME: TokenName = TokenName::Variable;
+}
+
+#[cfg(test)]
+mod test {
+    macro_rules! assert_peeks_completely {
+        ($t:expr, $what:literal) => {{
+            assert!(
+                $t.peek_len($what) == Some($what.len()),
+                "{} == {:?} != {:?}",
+                stringify!($t.peek_len($what)),
+                $t.peek_len($what),
+                Some($what.len())
+            );
+        }};
+    }
+
+    use crate::lexer::Dnumber;
+
+    use super::{Lnumber, PeekLen};
+
+    #[test]
+    fn dnumber() {
+        assert_peeks_completely!(Dnumber, "1.234");
+        assert_peeks_completely!(Dnumber, "1.2e3");
+        assert_peeks_completely!(Dnumber, "7E-10");
+    }
+
+    #[test]
+    fn lnumber() {
+        assert_peeks_completely!(Lnumber, "1234"); // decimal number
+        assert_peeks_completely!(Lnumber, "0123"); // octal number (equivalent to 83 decimal)
+                                                   //  0o123; // octal number (as of PHP 8.1.0)
+        assert_peeks_completely!(Lnumber, "0x1A"); // hexadecimal number (equivalent to 26 decimal)
+        assert_peeks_completely!(Lnumber, "0b11111111"); // binary number (equivalent to 255 decimal)
+    }
 }
