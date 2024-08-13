@@ -1,97 +1,187 @@
 use crate::{Token, TokenName};
 
+struct InlineHtml;
+
+impl PeekLen for InlineHtml {
+    fn peek_len(self, code: &str) -> Option<usize> {
+        let mut l = 0;
+        for c in code.chars() {
+            if OpenTag.peek_len(&code[l..]).is_some() {
+                break;
+            }
+            l += c.len_utf8();
+        }
+        if l > 0 {
+            Some(l)
+        } else {
+            None
+        }
+    }
+}
+
+impl ConstName for InlineHtml {
+    const NAME: TokenName = TokenName::InlineHtml;
+}
+
+macro_rules! lex_next {
+    (from $remaining:ident with $object_operator:ident match $($rules:expr),*) => {
+        None
+        $(
+            .or_else(|| Lex::lex($rules, $remaining, $object_operator))
+        )*
+        .unwrap()
+    };
+}
+
 pub fn lex(code: impl AsRef<str>) -> Vec<Token> {
     let mut remaining = code.as_ref();
     let mut tokens = Vec::new();
+    let mut inline_html = true;
+    let mut object_operator = false;
     while !remaining.is_empty() {
-        let (token, len) = None
-            .or_else(|| Lex::lex(Whitespace::<true>, remaining))
-            .or_else(|| Lex::lex(OpenTag, remaining))
-            .or_else(|| Lex::lex((Keyword("implements"), TokenName::Implements), remaining))
-            .or_else(|| Lex::lex((Keyword("include"), TokenName::Include), remaining))
-            .or_else(|| Lex::lex((Keyword("include_once"), TokenName::IncludeOnce), remaining))
-            .or_else(|| Lex::lex((Keyword("eval"), TokenName::Eval), remaining))
-            .or_else(|| Lex::lex((Keyword("require"), TokenName::Require), remaining))
-            .or_else(|| Lex::lex((Keyword("or"), TokenName::LogicalOr), remaining))
-            .or_else(|| Lex::lex((Keyword("xor"), TokenName::LogicalXor), remaining))
-            .or_else(|| Lex::lex((Keyword("and"), TokenName::LogicalAnd), remaining))
-            .or_else(|| Lex::lex((Keyword("print"), TokenName::Print), remaining))
-            .or_else(|| Lex::lex(YieldFrom, remaining))
-            .or_else(|| Lex::lex((Keyword("yield"), TokenName::Yield), remaining))
-            .or_else(|| Lex::lex(("=>", TokenName::DoubleArrow), remaining))
-            .or_else(|| Lex::lex(("+=", TokenName::PlusEqual), remaining))
-            .or_else(|| Lex::lex(("-=", TokenName::MinusEqual), remaining))
-            .or_else(|| Lex::lex(("*=", TokenName::MulEqual), remaining))
-            .or_else(|| Lex::lex(("/=", TokenName::DivEqual), remaining))
-            .or_else(|| Lex::lex((".=", TokenName::ConcatEqual), remaining))
-            .or_else(|| Lex::lex(("%=", TokenName::ModEqual), remaining))
-            .or_else(|| Lex::lex(("&=", TokenName::AndEqual), remaining))
-            .or_else(|| Lex::lex(("|=", TokenName::OrEqual), remaining))
-            .or_else(|| Lex::lex(("^=", TokenName::XorEqual), remaining))
-            .or_else(|| Lex::lex(("<<=", TokenName::SlEqual), remaining))
-            .or_else(|| Lex::lex((">>=", TokenName::SrEqual), remaining))
-            .or_else(|| Lex::lex(("**=", TokenName::PowEqual), remaining))
-            .or_else(|| Lex::lex(("**", TokenName::Pow), remaining))
-            .or_else(|| Lex::lex(("??", TokenName::Coalesce), remaining))
-            .or_else(|| Lex::lex(("||", TokenName::BooleanOr), remaining))
-            .or_else(|| Lex::lex(("&&", TokenName::BooleanAnd), remaining))
-            .or_else(|| Lex::lex(("===", TokenName::IsIdentical), remaining))
-            .or_else(|| Lex::lex(("==", TokenName::IsEqual), remaining))
-            .or_else(|| Lex::lex(("!==", TokenName::IsNotIdentical), remaining))
-            .or_else(|| Lex::lex(("!=", TokenName::IsNotEqual), remaining))
-            .or_else(|| Lex::lex(("<=>", TokenName::Spaceship), remaining))
-            .or_else(|| Lex::lex(("<=", TokenName::IsSmallerOrEqual), remaining))
-            .or_else(|| Lex::lex((">=", TokenName::IsGreaterOrEqual), remaining))
-            .or_else(|| Lex::lex(("<<", TokenName::Sl), remaining))
-            .or_else(|| Lex::lex((">>", TokenName::Sr), remaining))
-            .or_else(|| Lex::lex(("++", TokenName::Inc), remaining))
-            .or_else(|| Lex::lex(("--", TokenName::Dec), remaining))
-            .or_else(|| Lex::lex((Keyword("instanceof"), TokenName::Instanceof), remaining))
-            .or_else(|| Lex::lex((Cast("int"), TokenName::IntCast), remaining))
-            .or_else(|| Lex::lex((Cast("integer"), TokenName::IntCast), remaining))
-            .or_else(|| Lex::lex((Cast("float"), TokenName::DoubleCast), remaining))
-            .or_else(|| Lex::lex((Cast("double"), TokenName::DoubleCast), remaining))
-            .or_else(|| Lex::lex((Cast("real"), TokenName::DoubleCast), remaining))
-            .or_else(|| Lex::lex((Cast("string"), TokenName::StringCast), remaining))
-            .or_else(|| Lex::lex((Cast("binary"), TokenName::StringCast), remaining))
-            .or_else(|| Lex::lex((Cast("array"), TokenName::ArrayCast), remaining))
-            .or_else(|| Lex::lex((Cast("object"), TokenName::ObjectCast), remaining))
-            .or_else(|| Lex::lex((Cast("bool"), TokenName::BoolCast), remaining))
-            .or_else(|| Lex::lex((Cast("boolean"), TokenName::BoolCast), remaining))
-            .or_else(|| Lex::lex((Cast("unset"), TokenName::UnsetCast), remaining))
-            .or_else(|| Lex::lex((Keyword("new"), TokenName::New), remaining))
-            .or_else(|| Lex::lex((Keyword("clone"), TokenName::Clone), remaining))
-            .or_else(|| Lex::lex((Keyword("elseif"), TokenName::Elseif), remaining))
-            .or_else(|| Lex::lex((Keyword("else"), TokenName::Else), remaining))
-            .or_else(|| Lex::lex((Keyword("endif"), TokenName::Endif), remaining))
-            .or_else(|| Lex::lex((Keyword("static"), TokenName::Static), remaining))
-            .or_else(|| Lex::lex((Keyword("abstract"), TokenName::Abstract), remaining))
-            .or_else(|| Lex::lex((Keyword("final"), TokenName::Final), remaining))
-            .or_else(|| Lex::lex((Keyword("private"), TokenName::Private), remaining))
-            .or_else(|| Lex::lex((Keyword("protected"), TokenName::Protected), remaining))
-            .or_else(|| Lex::lex((Keyword("public"), TokenName::Public), remaining))
-            .or_else(|| Lex::lex(Lnumber, remaining))
-            .or_else(|| Lex::lex(Dnumber, remaining))
-            .or_else(|| Lex::lex(Variable, remaining))
-            .or_else(|| Lex::lex(Name, remaining))
-            .or_else(|| Lex::lex(Simple, remaining))
-            .unwrap();
-        tokens.push(token);
-        remaining = &remaining[len..];
+        if inline_html {
+            if let Some((token, len)) = InlineHtml.lex(remaining, false) {
+                tokens.push(token);
+                remaining = &remaining[len..];
+            }
+            inline_html = false;
+        } else {
+            let (token, len) = lex_next!(from remaining with object_operator match
+                Whitespace::<true>,
+                OpenTag,
+                DocComment,
+                Comment,
+                ("\\", TokenName::NsSeparator),
+                (Keyword("include"), TokenName::Include),
+                (Keyword("include_once"), TokenName::IncludeOnce),
+                (Keyword("eval"), TokenName::Eval),
+                (Keyword("require"), TokenName::Require),
+                (Keyword("or"), TokenName::LogicalOr),
+                (Keyword("xor"), TokenName::LogicalXor),
+                (Keyword("and"), TokenName::LogicalAnd),
+                (Keyword("print"), TokenName::Print),
+                YieldFrom,
+                (Keyword("yield"), TokenName::Yield),
+                ("=>", TokenName::DoubleArrow),
+                ("+=", TokenName::PlusEqual),
+                ("-=", TokenName::MinusEqual),
+                ("*=", TokenName::MulEqual),
+                ("/=", TokenName::DivEqual),
+                (".=", TokenName::ConcatEqual),
+                ("%=", TokenName::ModEqual),
+                ("&=", TokenName::AndEqual),
+                ("|=", TokenName::OrEqual),
+                ("^=", TokenName::XorEqual),
+                ("<<=", TokenName::SlEqual),
+                (">>=", TokenName::SrEqual),
+                ("**=", TokenName::PowEqual),
+                ("**", TokenName::Pow),
+                ("??", TokenName::Coalesce),
+                ("||", TokenName::BooleanOr),
+                ("&&", TokenName::BooleanAnd),
+                ("===", TokenName::IsIdentical),
+                ("==", TokenName::IsEqual),
+                ("!==", TokenName::IsNotIdentical),
+                ("!=", TokenName::IsNotEqual),
+                ("<=>", TokenName::Spaceship),
+                ("<=", TokenName::IsSmallerOrEqual),
+                (">=", TokenName::IsGreaterOrEqual),
+                ("<<", TokenName::Sl),
+                (">>", TokenName::Sr),
+                ("++", TokenName::Inc),
+                ("--", TokenName::Dec),
+                ("->", TokenName::ObjectOperator),
+                ("::", TokenName::DoubleColon),
+                ("...", TokenName::Ellipsis),
+                (Keyword("instanceof"), TokenName::Instanceof),
+                (Cast("int"), TokenName::IntCast),
+                (Cast("integer"), TokenName::IntCast),
+                (Cast("float"), TokenName::DoubleCast),
+                (Cast("double"), TokenName::DoubleCast),
+                (Cast("real"), TokenName::DoubleCast),
+                (Cast("string"), TokenName::StringCast),
+                (Cast("binary"), TokenName::StringCast),
+                (Cast("array"), TokenName::ArrayCast),
+                (Cast("object"), TokenName::ObjectCast),
+                (Cast("bool"), TokenName::BoolCast),
+                (Cast("boolean"), TokenName::BoolCast),
+                (Cast("unset"), TokenName::UnsetCast),
+                (Keyword("new"), TokenName::New),
+                (Keyword("clone"), TokenName::Clone),
+                (Keyword("elseif"), TokenName::Elseif),
+                (Keyword("else"), TokenName::Else),
+                (Keyword("endif"), TokenName::Endif),
+                (Keyword("static"), TokenName::Static),
+                (Keyword("abstract"), TokenName::Abstract),
+                (Keyword("final"), TokenName::Final),
+                (Keyword("private"), TokenName::Private),
+                (Keyword("protected"), TokenName::Protected),
+                (Keyword("public"), TokenName::Public),
+                (Keyword("function"), TokenName::Function),
+                (Keyword("callable"), TokenName::Callable),
+                (Keyword("class"), TokenName::Class),
+                (Keyword("interface"), TokenName::Interface),
+                (Keyword("trait"), TokenName::Trait),
+                (Keyword("namespace"), TokenName::Namespace),
+                (Keyword("use"), TokenName::Use),
+                (Keyword("implements"), TokenName::Implements),
+                (Keyword("extends"), TokenName::Extends),
+                (Keyword("array"), TokenName::Array),
+                (Keyword("unset"), TokenName::Unset),
+                (Keyword("isset"), TokenName::Isset),
+                (Keyword("empty"), TokenName::Empty),
+                (Keyword("if"), TokenName::If),
+                (Keyword("else"), TokenName::Else),
+                (Keyword("elseif"), TokenName::Elseif),
+                (Keyword("switch"), TokenName::Switch),
+                (Keyword("case"), TokenName::Case),
+                (Keyword("default"), TokenName::Default),
+                (Keyword("foreach"), TokenName::Foreach),
+                (Keyword("while"), TokenName::While),
+                (Keyword("continue"), TokenName::Continue),
+                (Keyword("break"), TokenName::Break),
+                (Keyword("as"), TokenName::As),
+                (Keyword("for"), TokenName::For),
+                (Keyword("return"), TokenName::Return),
+                (Keyword("try"), TokenName::Try),
+                (Keyword("catch"), TokenName::Catch),
+                (Keyword("finally"), TokenName::Finally),
+                (Keyword("throw"), TokenName::Throw),
+                (Keyword("__class__"), TokenName::ClassC),
+                (Keyword("__function__"), TokenName::FuncC),
+                (Keyword("__dir__"), TokenName::Dir),
+                (Keyword("__file__"), TokenName::File),
+                (Keyword("__method__"), TokenName::MethodC),
+                Lnumber,
+                Dnumber,
+                ConstantEncapsedString,
+                Variable,
+                Name,
+                Simple
+            );
+            inline_html = token.is_complex_named(TokenName::CloseTag);
+            object_operator = token.is_complex_named(TokenName::ObjectOperator);
+            tokens.push(token);
+            remaining = &remaining[len..];
+        }
     }
     tokens
 }
 
 trait Lex {
-    fn lex(self, code: &str) -> Option<(Token, usize)>;
+    fn lex(self, code: &str, object_operator: bool) -> Option<(Token, usize)>;
 }
 
 trait PeekLen {
+    const AFTER_OBJECT_OPERATOR: bool = true;
     fn peek_len(self, code: &str) -> Option<usize>;
 }
 
 impl<T: PeekLen> Lex for (T, TokenName) {
-    fn lex(self, code: &str) -> Option<(Token, usize)> {
+    fn lex(self, code: &str, object_operator: bool) -> Option<(Token, usize)> {
+        if !T::AFTER_OBJECT_OPERATOR && object_operator {
+            return None;
+        }
         let (peek_len, name) = self;
         peek_len.peek_len(code).map(|l| {
             (
@@ -133,8 +223,10 @@ impl PeekLen for CaseInsensitive<'_> {
 struct Keyword(&'static str);
 
 impl PeekLen for Keyword {
+    const AFTER_OBJECT_OPERATOR: bool = false;
     fn peek_len(self, code: &str) -> Option<usize> {
-        if let Some(len) = CaseInsensitive(self.0).peek_len(code) {
+        let Self(kw) = self;
+        if let Some(len) = CaseInsensitive(kw).peek_len(code) {
             if let Some(b'a'..=b'z' | b'A'..=b'Z' | 0x80..=0xff | b'_') = code[len..].bytes().next()
             {
                 None
@@ -150,7 +242,7 @@ impl PeekLen for Keyword {
 struct Simple;
 
 impl Lex for Simple {
-    fn lex(self, code: &str) -> Option<(Token, usize)> {
+    fn lex(self, code: &str, _object_operator: bool) -> Option<(Token, usize)> {
         code.chars()
             .next()
             .map(|c| (Token::Simple(c), c.len_utf8()))
@@ -172,7 +264,7 @@ impl PeekLen for Name {
         } else {
             return None;
         }
-        while let Some(b'a'..=b'z' | b'A'..=b'Z' | 0x80..=0xff | b'_') = bytes.next() {
+        while let Some(b'a'..=b'z' | b'A'..=b'Z' | b'0'..b'9' | 0x80..=0xff | b'_') = bytes.next() {
             bytelen += 1;
         }
         Some(bytelen)
@@ -208,7 +300,7 @@ impl<T> Lex for T
 where
     T: PeekLen + ConstName,
 {
-    fn lex(self, code: &str) -> Option<(Token, usize)> {
+    fn lex(self, code: &str, _object_operator: bool) -> Option<(Token, usize)> {
         self.peek_len(code).map(|l| {
             (
                 Token::Complex {
@@ -269,11 +361,12 @@ const _: () = {
         ($($types:ident),+) => {
             impl<$($types: PeekLen),*> PeekLen for Or<($($types,)*)> {
                 #[allow(non_snake_case)]
+                #[inline]
                 fn peek_len(self, code: &str) -> Option<usize> {
                     let ($($types),*) = self.0;
                     None
                     $(
-                        .or_else(|| dbg!($types.peek_len(code)))
+                        .or_else(|| $types.peek_len(code))
                     )*
                 }
             }
@@ -478,14 +571,91 @@ impl ConstName for Dnumber {
 
 struct Variable;
 
-impl PeekLen for Variable{
+impl PeekLen for Variable {
     fn peek_len(self, code: &str) -> Option<usize> {
         Sequence(("$", Name)).peek_len(code)
     }
 }
 
-impl ConstName for Variable{
+impl ConstName for Variable {
     const NAME: TokenName = TokenName::Variable;
+}
+
+struct Comment;
+
+impl ConstName for Comment {
+    const NAME: TokenName = TokenName::Comment;
+}
+
+impl PeekLen for Comment {
+    fn peek_len(self, code: &str) -> Option<usize> {
+        struct SingleLineComment;
+        impl PeekLen for SingleLineComment {
+            fn peek_len(self, code: &str) -> Option<usize> {
+                PeekLen::peek_len("//", code)
+                    .or_else(|| PeekLen::peek_len("#", code))
+                    .map(|l| {
+                        code[l..]
+                            .find("\n")
+                            .map(|n| l + n + 1)
+                            .unwrap_or(code.len())
+                    })
+            }
+        }
+        struct MultiLineComment;
+        impl PeekLen for MultiLineComment {
+            fn peek_len(self, code: &str) -> Option<usize> {
+                PeekLen::peek_len("/*", code).map(|l| {
+                    code[l..]
+                        .find("*/")
+                        .map(|n| l + n + 2)
+                        .unwrap_or(code.len())
+                })
+            }
+        }
+        None.or_else(|| SingleLineComment.peek_len(code))
+            .or_else(|| MultiLineComment.peek_len(code))
+    }
+}
+struct DocComment;
+
+impl ConstName for DocComment {
+    const NAME: TokenName = TokenName::DocComment;
+}
+
+impl PeekLen for DocComment {
+    fn peek_len(self, code: &str) -> Option<usize> {
+        PeekLen::peek_len("/**", code).map(|l| {
+            code[l..]
+                .find("*/")
+                .map(|n| l + n + 2)
+                .unwrap_or(code.len())
+        })
+    }
+}
+
+struct ConstantEncapsedString;
+
+impl ConstName for ConstantEncapsedString {
+    const NAME: TokenName = TokenName::ConstantEncapsedString;
+}
+
+impl PeekLen for ConstantEncapsedString {
+    fn peek_len(self, code: &str) -> Option<usize> {
+        if !code.starts_with('\'') {
+            return None;
+        }
+        let mut escape = false;
+        let mut l = '\''.len_utf8();
+        for c in code['\''.len_utf8()..].chars() {
+            l += c.len_utf8();
+            if !escape && c == '\'' {
+                return Some(l);
+            }
+            escape = !escape && c == '\\';
+        }
+        None
+    }
 }
 
 #[cfg(test)]

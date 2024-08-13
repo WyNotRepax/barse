@@ -15,8 +15,21 @@ fn lex_native(code: impl AsRef<str>) -> Vec<NativeToken> {
         .unwrap();
     let code = serde_json::to_string(code.as_ref()).unwrap();
     let code = code.replace("$", "\\$");
-    println!("{code}");
-    dbg!(exec.exec(dbg!(format!("token_get_all({code})"))))
+    // println!("{code}");
+    exec.exec(format!("
+array_map(function ($token) \{
+    if (is_array($token)) \{
+        return [
+            \"complex\" => [
+                \"name\" => token_name($token[0]),
+                \"content\" => $token[1],
+            ]
+        ];
+    } else \{
+        return [\"simple\" => $token];
+    }
+}, token_get_all(\"\"));
+"))
         .unwrap()
         .to_result()
         .unwrap()

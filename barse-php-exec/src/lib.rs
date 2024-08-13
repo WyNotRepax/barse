@@ -67,7 +67,7 @@ impl PhpExec {
             .send(code)?;
         let mut response_buffer = String::new();
         self.child_stdout_reader.read_line(&mut response_buffer)?;
-        let mut des = Deserializer::from_str(dbg!(&response_buffer));
+        let mut des = Deserializer::from_str(&response_buffer);
         Ok(PhpResult::deserialize(&mut des)?)
     }
 }
