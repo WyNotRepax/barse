@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use crate::{Token, TokenName};
 
 struct InlineHtml;
@@ -34,135 +36,176 @@ macro_rules! lex_next {
 }
 
 pub fn lex(code: impl AsRef<str>) -> Vec<Token> {
+    enum LexerMode {
+        InlineHtml,
+        Code,
+        String,
+        ComplexString
+    }
+
     let mut remaining = code.as_ref();
     let mut tokens = Vec::new();
-    let mut inline_html = true;
+    let mut mode = LexerMode::InlineHtml;
     let mut object_operator = false;
     while !remaining.is_empty() {
-        if inline_html {
-            if let Some((token, len)) = InlineHtml.lex(remaining, false) {
+        match mode {
+            LexerMode::InlineHtml => {
+                if let Some((token, len)) = InlineHtml.lex(remaining, false) {
+                    tokens.push(token);
+                    remaining = &remaining[len..];
+                }
+                mode = LexerMode::Code;
+            }
+            LexerMode::Code => {
+                let (token, len) = lex_next!(from remaining with object_operator match
+                    Whitespace::<true>,
+                    OpenTag,
+                    DocComment,
+                    Comment,
+                    ("\\", TokenName::NsSeparator),
+                    (Keyword("include"), TokenName::Include),
+                    (Keyword("include_once"), TokenName::IncludeOnce),
+                    (Keyword("eval"), TokenName::Eval),
+                    (Keyword("require"), TokenName::Require),
+                    (Keyword("or"), TokenName::LogicalOr),
+                    (Keyword("xor"), TokenName::LogicalXor),
+                    (Keyword("and"), TokenName::LogicalAnd),
+                    (Keyword("print"), TokenName::Print),
+                    YieldFrom,
+                    (Keyword("yield"), TokenName::Yield),
+                    ("=>", TokenName::DoubleArrow),
+                    ("+=", TokenName::PlusEqual),
+                    ("-=", TokenName::MinusEqual),
+                    ("*=", TokenName::MulEqual),
+                    ("/=", TokenName::DivEqual),
+                    (".=", TokenName::ConcatEqual),
+                    ("%=", TokenName::ModEqual),
+                    ("&=", TokenName::AndEqual),
+                    ("|=", TokenName::OrEqual),
+                    ("^=", TokenName::XorEqual),
+                    ("<<=", TokenName::SlEqual),
+                    (">>=", TokenName::SrEqual),
+                    ("**=", TokenName::PowEqual),
+                    ("**", TokenName::Pow),
+                    ("??", TokenName::Coalesce),
+                    ("||", TokenName::BooleanOr),
+                    ("&&", TokenName::BooleanAnd),
+                    ("===", TokenName::IsIdentical),
+                    ("==", TokenName::IsEqual),
+                    ("!==", TokenName::IsNotIdentical),
+                    ("!=", TokenName::IsNotEqual),
+                    ("<=>", TokenName::Spaceship),
+                    ("<=", TokenName::IsSmallerOrEqual),
+                    (">=", TokenName::IsGreaterOrEqual),
+                    ("<<", TokenName::Sl),
+                    (">>", TokenName::Sr),
+                    ("++", TokenName::Inc),
+                    ("--", TokenName::Dec),
+                    ("->", TokenName::ObjectOperator),
+                    ("::", TokenName::DoubleColon),
+                    ("...", TokenName::Ellipsis),
+                    (Keyword("instanceof"), TokenName::Instanceof),
+                    (Cast("int"), TokenName::IntCast),
+                    (Cast("integer"), TokenName::IntCast),
+                    (Cast("float"), TokenName::DoubleCast),
+                    (Cast("double"), TokenName::DoubleCast),
+                    (Cast("real"), TokenName::DoubleCast),
+                    (Cast("string"), TokenName::StringCast),
+                    (Cast("binary"), TokenName::StringCast),
+                    (Cast("array"), TokenName::ArrayCast),
+                    (Cast("object"), TokenName::ObjectCast),
+                    (Cast("bool"), TokenName::BoolCast),
+                    (Cast("boolean"), TokenName::BoolCast),
+                    (Cast("unset"), TokenName::UnsetCast),
+                    (Keyword("new"), TokenName::New),
+                    (Keyword("clone"), TokenName::Clone),
+                    (Keyword("elseif"), TokenName::Elseif),
+                    (Keyword("else"), TokenName::Else),
+                    (Keyword("endif"), TokenName::Endif),
+                    (Keyword("static"), TokenName::Static),
+                    (Keyword("abstract"), TokenName::Abstract),
+                    (Keyword("final"), TokenName::Final),
+                    (Keyword("private"), TokenName::Private),
+                    (Keyword("protected"), TokenName::Protected),
+                    (Keyword("public"), TokenName::Public),
+                    (Keyword("function"), TokenName::Function),
+                    (Keyword("callable"), TokenName::Callable),
+                    (Keyword("class"), TokenName::Class),
+                    (Keyword("interface"), TokenName::Interface),
+                    (Keyword("trait"), TokenName::Trait),
+                    (Keyword("namespace"), TokenName::Namespace),
+                    (Keyword("use"), TokenName::Use),
+                    (Keyword("implements"), TokenName::Implements),
+                    (Keyword("extends"), TokenName::Extends),
+                    (Keyword("array"), TokenName::Array),
+                    (Keyword("unset"), TokenName::Unset),
+                    (Keyword("isset"), TokenName::Isset),
+                    (Keyword("empty"), TokenName::Empty),
+                    (Keyword("if"), TokenName::If),
+                    (Keyword("else"), TokenName::Else),
+                    (Keyword("elseif"), TokenName::Elseif),
+                    (Keyword("switch"), TokenName::Switch),
+                    (Keyword("case"), TokenName::Case),
+                    (Keyword("default"), TokenName::Default),
+                    (Keyword("foreach"), TokenName::Foreach),
+                    (Keyword("while"), TokenName::While),
+                    (Keyword("continue"), TokenName::Continue),
+                    (Keyword("break"), TokenName::Break),
+                    (Keyword("as"), TokenName::As),
+                    (Keyword("for"), TokenName::For),
+                    (Keyword("return"), TokenName::Return),
+                    (Keyword("try"), TokenName::Try),
+                    (Keyword("catch"), TokenName::Catch),
+                    (Keyword("finally"), TokenName::Finally),
+                    (Keyword("throw"), TokenName::Throw),
+                    (Keyword("__class__"), TokenName::ClassC),
+                    (Keyword("__function__"), TokenName::FuncC),
+                    (Keyword("__dir__"), TokenName::Dir),
+                    (Keyword("__file__"), TokenName::File),
+                    (Keyword("__method__"), TokenName::MethodC),
+                    Lnumber,
+                    Dnumber,
+                    ConstantEncapsedString,
+                    Variable,
+                    Name,
+                    Simple
+                );
+                if token.is_complex_named(TokenName::CloseTag) {
+                    mode = LexerMode::InlineHtml;
+                }
+                if token.is_simple('\"') {
+                    mode = LexerMode::String;
+                }
+                object_operator = token.is_complex_named(TokenName::ObjectOperator);
                 tokens.push(token);
                 remaining = &remaining[len..];
             }
-            inline_html = false;
-        } else {
-            let (token, len) = lex_next!(from remaining with object_operator match
-                Whitespace::<true>,
-                OpenTag,
-                DocComment,
-                Comment,
-                ("\\", TokenName::NsSeparator),
-                (Keyword("include"), TokenName::Include),
-                (Keyword("include_once"), TokenName::IncludeOnce),
-                (Keyword("eval"), TokenName::Eval),
-                (Keyword("require"), TokenName::Require),
-                (Keyword("or"), TokenName::LogicalOr),
-                (Keyword("xor"), TokenName::LogicalXor),
-                (Keyword("and"), TokenName::LogicalAnd),
-                (Keyword("print"), TokenName::Print),
-                YieldFrom,
-                (Keyword("yield"), TokenName::Yield),
-                ("=>", TokenName::DoubleArrow),
-                ("+=", TokenName::PlusEqual),
-                ("-=", TokenName::MinusEqual),
-                ("*=", TokenName::MulEqual),
-                ("/=", TokenName::DivEqual),
-                (".=", TokenName::ConcatEqual),
-                ("%=", TokenName::ModEqual),
-                ("&=", TokenName::AndEqual),
-                ("|=", TokenName::OrEqual),
-                ("^=", TokenName::XorEqual),
-                ("<<=", TokenName::SlEqual),
-                (">>=", TokenName::SrEqual),
-                ("**=", TokenName::PowEqual),
-                ("**", TokenName::Pow),
-                ("??", TokenName::Coalesce),
-                ("||", TokenName::BooleanOr),
-                ("&&", TokenName::BooleanAnd),
-                ("===", TokenName::IsIdentical),
-                ("==", TokenName::IsEqual),
-                ("!==", TokenName::IsNotIdentical),
-                ("!=", TokenName::IsNotEqual),
-                ("<=>", TokenName::Spaceship),
-                ("<=", TokenName::IsSmallerOrEqual),
-                (">=", TokenName::IsGreaterOrEqual),
-                ("<<", TokenName::Sl),
-                (">>", TokenName::Sr),
-                ("++", TokenName::Inc),
-                ("--", TokenName::Dec),
-                ("->", TokenName::ObjectOperator),
-                ("::", TokenName::DoubleColon),
-                ("...", TokenName::Ellipsis),
-                (Keyword("instanceof"), TokenName::Instanceof),
-                (Cast("int"), TokenName::IntCast),
-                (Cast("integer"), TokenName::IntCast),
-                (Cast("float"), TokenName::DoubleCast),
-                (Cast("double"), TokenName::DoubleCast),
-                (Cast("real"), TokenName::DoubleCast),
-                (Cast("string"), TokenName::StringCast),
-                (Cast("binary"), TokenName::StringCast),
-                (Cast("array"), TokenName::ArrayCast),
-                (Cast("object"), TokenName::ObjectCast),
-                (Cast("bool"), TokenName::BoolCast),
-                (Cast("boolean"), TokenName::BoolCast),
-                (Cast("unset"), TokenName::UnsetCast),
-                (Keyword("new"), TokenName::New),
-                (Keyword("clone"), TokenName::Clone),
-                (Keyword("elseif"), TokenName::Elseif),
-                (Keyword("else"), TokenName::Else),
-                (Keyword("endif"), TokenName::Endif),
-                (Keyword("static"), TokenName::Static),
-                (Keyword("abstract"), TokenName::Abstract),
-                (Keyword("final"), TokenName::Final),
-                (Keyword("private"), TokenName::Private),
-                (Keyword("protected"), TokenName::Protected),
-                (Keyword("public"), TokenName::Public),
-                (Keyword("function"), TokenName::Function),
-                (Keyword("callable"), TokenName::Callable),
-                (Keyword("class"), TokenName::Class),
-                (Keyword("interface"), TokenName::Interface),
-                (Keyword("trait"), TokenName::Trait),
-                (Keyword("namespace"), TokenName::Namespace),
-                (Keyword("use"), TokenName::Use),
-                (Keyword("implements"), TokenName::Implements),
-                (Keyword("extends"), TokenName::Extends),
-                (Keyword("array"), TokenName::Array),
-                (Keyword("unset"), TokenName::Unset),
-                (Keyword("isset"), TokenName::Isset),
-                (Keyword("empty"), TokenName::Empty),
-                (Keyword("if"), TokenName::If),
-                (Keyword("else"), TokenName::Else),
-                (Keyword("elseif"), TokenName::Elseif),
-                (Keyword("switch"), TokenName::Switch),
-                (Keyword("case"), TokenName::Case),
-                (Keyword("default"), TokenName::Default),
-                (Keyword("foreach"), TokenName::Foreach),
-                (Keyword("while"), TokenName::While),
-                (Keyword("continue"), TokenName::Continue),
-                (Keyword("break"), TokenName::Break),
-                (Keyword("as"), TokenName::As),
-                (Keyword("for"), TokenName::For),
-                (Keyword("return"), TokenName::Return),
-                (Keyword("try"), TokenName::Try),
-                (Keyword("catch"), TokenName::Catch),
-                (Keyword("finally"), TokenName::Finally),
-                (Keyword("throw"), TokenName::Throw),
-                (Keyword("__class__"), TokenName::ClassC),
-                (Keyword("__function__"), TokenName::FuncC),
-                (Keyword("__dir__"), TokenName::Dir),
-                (Keyword("__file__"), TokenName::File),
-                (Keyword("__method__"), TokenName::MethodC),
-                Lnumber,
-                Dnumber,
-                ConstantEncapsedString,
-                Variable,
-                Name,
-                Simple
-            );
-            inline_html = token.is_complex_named(TokenName::CloseTag);
-            object_operator = token.is_complex_named(TokenName::ObjectOperator);
-            tokens.push(token);
-            remaining = &remaining[len..];
+            LexerMode::String => {
+                let (token, len) = lex_next!(from remaining with object_operator match
+                    EncapsedAndWhitespace,
+                    CurlyOpen,
+                    Variable,
+                    Simple
+                );
+                if token.is_simple('\"') {
+                    mode = LexerMode::Code;
+                }
+                object_operator = token.is_complex_named(TokenName::ObjectOperator);
+                tokens.push(token);
+                remaining = &remaining[len..];
+            }
+            LexerMode::ComplexString => {
+                let (token, len) = lex_next!(from remaining with object_operator match
+                    Variable,
+                    Simple
+                );
+                if token.is_simple('\"') {
+                    mode = LexerMode::Code;
+                }
+                object_operator = token.is_complex_named(TokenName::ObjectOperator);
+                tokens.push(token);
+                remaining = &remaining[len..];
+            }
         }
     }
     tokens
@@ -655,6 +698,51 @@ impl PeekLen for ConstantEncapsedString {
             escape = !escape && c == '\\';
         }
         None
+    }
+}
+
+struct EncapsedAndWhitespace;
+
+impl ConstName for EncapsedAndWhitespace {
+    const NAME: TokenName = TokenName::EncapsedAndWhitespace;
+}
+
+impl PeekLen for EncapsedAndWhitespace {
+    fn peek_len(self, code: &str) -> Option<usize> {
+        let mut l = 0;
+        let mut escape = false;
+        for c in code.chars() {
+            if !escape {
+                match c {
+                    '\\' => escape = true,
+                    '$' | '"' => break,
+                    '{' if &code[l..][1..=1] == "$" => break,
+                    _ => (),
+                }
+            }
+            l += c.len_utf8()
+        }
+        if l > 0 {
+            Some(l)
+        } else {
+            None
+        }
+    }
+}
+
+struct CurlyOpen;
+
+impl ConstName for CurlyOpen {
+    const NAME: TokenName = TokenName::CurlyOpen;
+}
+
+impl PeekLen for CurlyOpen {
+    fn peek_len(self, code: &str) -> Option<usize> {
+        if code.starts_with("{") {
+            Some("{".len())
+        } else {
+            None
+        }
     }
 }
 

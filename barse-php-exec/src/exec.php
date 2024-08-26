@@ -1,5 +1,4 @@
 <?php
-
 function handler(int $errno, string $errstr): bool
 {
     throw new Exception($errstr, $errno);
@@ -22,5 +21,5 @@ function execLine(string $line): string
 }
 
 while (true) {
-    echo execLine(readline()) . PHP_EOL;
+    echo execLine(json_decode(readline()) ?? "null") . PHP_EOL;
 }

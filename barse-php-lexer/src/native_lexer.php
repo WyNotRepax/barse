@@ -11,4 +11,4 @@ array_map(function ($token) {
     } else {
         return ["simple" => $token];
     }
-}, token_get_all(""));
+}, token_get_all(/**CODE**/));

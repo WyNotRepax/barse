@@ -36,7 +36,7 @@ impl PhpExec {
             .args(["-r", &EXEC[5..]])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stderr(Stdio::inherit())
             .spawn()?;
 
         let stdout = child_process.stdout.take().unwrap();
@@ -60,7 +60,8 @@ impl PhpExec {
         })
     }
 
-    pub fn exec<R: DeserializeOwned>(&mut self, code: String) -> Result<PhpResult<R>> {
+    pub fn exec<R: DeserializeOwned>(&mut self, code: impl AsRef<str>) -> Result<PhpResult<R>> {
+        let code = serde_json::to_string(code.as_ref()).unwrap();
         self.child_stdin_writer_channel
             .as_ref()
             .unwrap()

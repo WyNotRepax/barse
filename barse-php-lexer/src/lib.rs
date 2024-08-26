@@ -10,7 +10,6 @@ pub mod regex;
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "native", derive(serde::Deserialize))]
-#[cfg_attr(feature = "native", serde(tag = "type"))]
 #[cfg_attr(feature = "native", serde(rename_all = "camelCase"))]
 pub enum Token {
     Simple(char),
@@ -32,6 +31,13 @@ impl Token {
             Self::Complex {
                 name: self_name, ..
             } => name == *self_name,
+            _ => false,
+        }
+    }
+
+    pub fn is_simple(&self, c: char) -> bool {
+        match self {
+            Self::Simple(self_c) => c == *self_c,
             _ => false,
         }
     }

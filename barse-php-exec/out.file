@@ -5,13 +5,15 @@ test test::test ... FAILED
 failures:
 
 ---- test::test stdout ----
-thread 'test::test' panicked at src/lib.rs:37:50:
-called `Option::unwrap()` on a `None` value
+[barse-php-exec/src/lib.rs:64:9] &code = "get_defined_constants(true)['tokenizer']"
+[barse-php-exec/src/lib.rs:71:9] &response_buffer = ""
+thread 'test::test' panicked at barse-php-exec/src/lib.rs:129:14:
+called `Result::unwrap()` on an `Err` value: Deserialize(Error("EOF while parsing a value", line: 1, column: 0))
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 
 
 failures:
     test::test
 
-test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
 
