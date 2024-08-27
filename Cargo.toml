@@ -1,4 +1,4 @@
 [workspace]
 resolver = "1"
 
-members = ["barse-php-exec", "barse-php-lexer"]
+members = ["barse-php-exec", "barse-php-lexer", "barse-php-parser"]

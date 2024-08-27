@@ -1,0 +1,8 @@
+[package]
+name = "barse-php-parser"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+barse-php-lexer = { version = "0.1.0", path = "../barse-php-lexer" }
+bitflags = "2.6.0"

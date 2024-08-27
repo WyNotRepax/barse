@@ -35,12 +35,19 @@ macro_rules! lex_next {
     };
 }
 
+pub struct Lexer;
+impl crate::Lexer for Lexer {
+    fn lex<C: AsRef<str>>(self, code: C) -> Vec<Token> {
+        lex(code)
+    }
+}
+
 pub fn lex(code: impl AsRef<str>) -> Vec<Token> {
     enum LexerMode {
         InlineHtml,
         Code,
         String,
-        ComplexString
+        ComplexString,
     }
 
     let mut remaining = code.as_ref();

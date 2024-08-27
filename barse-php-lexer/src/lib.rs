@@ -1,12 +1,14 @@
 pub mod lexer;
 mod token_name;
 
-pub use token_name::TokenName;
-
 #[cfg(feature = "native")]
 pub mod native;
 
-pub mod regex;
+pub use token_name::TokenName;
+
+pub trait Lexer {
+    fn lex<C: AsRef<str>>(self, code: C) -> Vec<Token>;
+}
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "native", derive(serde::Deserialize))]

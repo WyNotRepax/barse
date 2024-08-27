@@ -4,6 +4,14 @@ use barse_php_exec::PhpExec;
 
 use crate::{Token, TokenName};
 
+pub struct Lexer;
+impl crate::Lexer for Lexer {
+    #[inline(always)]
+    fn lex<C: AsRef<str>>(self, code: C) -> Vec<Token> {
+        lex(code)
+    }
+}
+
 const EXEC: OnceLock<Mutex<PhpExec>> = OnceLock::new();
 const CODE: &'static str = include_str!("native_lexer.php");
 
