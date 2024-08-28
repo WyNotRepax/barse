@@ -1,6 +1,6 @@
 use std::{
     io::{self, BufRead, BufReader, Write},
-    process::{Child, ChildStdin, ChildStdout, Command, Stdio},
+    process::{Child, ChildStdout, Command, Stdio},
     sync::mpsc::{sync_channel, SendError, SyncSender},
     thread::{self, JoinHandle},
 };
@@ -28,7 +28,7 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-const EXEC: &'static str = include_str!("exec.php");
+const EXEC: &str = include_str!("exec.php");
 
 impl PhpExec {
     pub fn new() -> Result<Self> {

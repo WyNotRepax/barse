@@ -2,7 +2,7 @@ use std::sync::{Mutex, OnceLock};
 
 use barse_php_exec::PhpExec;
 
-use crate::{Token, TokenName};
+use crate::Token;
 
 pub struct Lexer;
 impl crate::Lexer for Lexer {
@@ -12,12 +12,11 @@ impl crate::Lexer for Lexer {
     }
 }
 
-const EXEC: OnceLock<Mutex<PhpExec>> = OnceLock::new();
-const CODE: &'static str = include_str!("native_lexer.php");
+static EXEC: OnceLock<Mutex<PhpExec>> = OnceLock::new();
+const CODE: &str = include_str!("native_lexer.php");
 
 fn lex_native(code: impl AsRef<str>) -> Vec<Token> {
-    let exec = EXEC;
-    let mut exec = exec
+    let mut exec = EXEC
         .get_or_init(|| Mutex::new(PhpExec::new().unwrap()))
         .lock()
         .unwrap();

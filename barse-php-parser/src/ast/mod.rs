@@ -41,17 +41,17 @@ pub enum Type_ {
 }
 
 pub struct AttributeGroup {
-    attrs: Vec<Attribute>,
+    pub attrs: Vec<Attribute>,
 }
 
 pub struct Attribute {
-    name: Name,
-    args: Vec<Arg>,
+    pub name: Name,
+    pub args: Vec<Arg>,
 }
 
 pub struct Name {
-    name: String,
-    kind: NameKind,
+    pub name: String,
+    pub kind: NameKind,
 }
 
 pub enum NameKind {
@@ -67,14 +67,14 @@ pub enum SpecialName {
 }
 
 pub struct Arg {
-    identifier: Option<Identifier>,
-    value: Expr,
-    by_ref: bool,
-    unpack: bool,
+    pub identifier: Option<Identifier>,
+    pub value: Expr,
+    pub by_ref: bool,
+    pub unpack: bool,
 }
 
 pub struct Identifier {
-    name: String,
+    pub name: String,
 }
 
 pub enum IdentifierOrName {
@@ -88,12 +88,11 @@ pub enum ComplexType {
     NullableType(NullableType),
 }
 pub struct IntersectionType {
-    types: Vec<Type_>,
+    pub types: Vec<Type_>,
 }
 pub struct UnionType {
-    types: Vec<Type_>,
+    pub types: Vec<Type_>,
 }
 pub struct NullableType {
-    type_: Type_,
+    pub type_: Type_,
 }
-

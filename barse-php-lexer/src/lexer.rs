@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 use crate::{Token, TokenName};
 
 struct InlineHtml;
@@ -47,6 +45,7 @@ pub fn lex(code: impl AsRef<str>) -> Vec<Token> {
         InlineHtml,
         Code,
         String,
+        #[allow(unused)] // Todo
         ComplexString,
     }
 
@@ -276,16 +275,12 @@ impl PeekLen for Keyword {
     const AFTER_OBJECT_OPERATOR: bool = false;
     fn peek_len(self, code: &str) -> Option<usize> {
         let Self(kw) = self;
-        if let Some(len) = CaseInsensitive(kw).peek_len(code) {
-            if let Some(b'a'..=b'z' | b'A'..=b'Z' | 0x80..=0xff | b'_') = code[len..].bytes().next()
-            {
-                None
-            } else {
-                Some(len)
-            }
-        } else {
-            None
-        }
+        CaseInsensitive(kw).peek_len(code).filter(|&len| {
+            !matches!(
+                code[len..].bytes().next(),
+                Some(b'a'..=b'z' | b'A'..=b'Z' | 0x80..=0xff | b'_')
+            )
+        })
     }
 }
 
@@ -314,7 +309,7 @@ impl PeekLen for Name {
         } else {
             return None;
         }
-        while let Some(b'a'..=b'z' | b'A'..=b'Z' | b'0'..b'9' | 0x80..=0xff | b'_') = bytes.next() {
+        while let Some(b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | 0x80..=0xff | b'_') = bytes.next() {
             bytelen += 1;
         }
         Some(bytelen)
@@ -492,12 +487,10 @@ impl PeekLen for Lnumber {
             fn peek_len(self, code: &str) -> Option<usize> {
                 let len = code
                     .chars()
-                    .take_while(|c| c.is_digit(10))
+                    .take_while(|c| c.is_ascii_digit())
                     .map(char::len_utf8)
                     .sum();
-                if len == 0 {
-                    None
-                } else if code.starts_with("0") && len > 1 {
+                if len == 0 || code.starts_with("0") {
                     None
                 } else {
                     Some(len)

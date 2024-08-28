@@ -51,14 +51,12 @@ pub struct AssignRef {
 
 pub use binary_op::BinaryOp;
 
-pub struct BitwiseNot{
-    expr: Expr,
+pub struct BitwiseNot {
+    pub expr: Expr,
 }
 
-pub struct BooleanNot{
-    expr: Expr,
+pub struct BooleanNot {
+    pub expr: Expr,
 }
-
-
 
 pub struct Variable {}

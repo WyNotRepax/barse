@@ -18,7 +18,9 @@ pub enum Token {
     Complex { content: String, name: TokenName },
 }
 
+
 impl Token {
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         match self {
             Self::Simple(c) => c.len_utf8(),
