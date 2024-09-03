@@ -1,7 +1,9 @@
 use bitflags::bitflags;
 use expr::{Expr, Variable};
+use stmt::{Class, Stmt};
 
 pub mod expr;
+pub mod stmt;
 pub trait Node {}
 
 pub struct ArrayItem {
@@ -73,6 +75,11 @@ pub struct Arg {
     pub unpack: bool,
 }
 
+pub enum ArgOrVariadicPlaceholder {
+    Arg(Arg),
+    VariadicPlaceholder,
+}
+
 pub struct Identifier {
     pub name: String,
 }
@@ -95,4 +102,38 @@ pub struct UnionType {
 }
 pub struct NullableType {
     pub type_: Type_,
+}
+pub enum NameOrExpr {
+    Name(Name),
+    Expr(Expr),
+}
+
+pub struct ClosureUse {
+    pub var: Variable,
+    pub by_ref: bool,
+}
+
+pub struct MatchArm {
+    pub conds: Option<Vec<Expr>>,
+    pub body: Expr,
+}
+
+pub enum IdentifierOrExpr {
+    Identifier(Identifier),
+    Expr(Expr),
+}
+
+pub enum NameOrExprOrClass {
+    Name(Name),
+    Expr(Expr),
+    Class(Class),
+}
+
+pub enum ExprOrInterpolatedStringPart {
+    Expr(Expr),
+    InterpolatedStringPart(InterpolatedStringPart),
+}
+
+pub struct InterpolatedStringPart {
+    pub value: String,
 }
